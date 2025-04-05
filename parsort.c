@@ -22,18 +22,37 @@ int main( int argc, char **argv ) {
     exit( 1 );
   }
 
-  int fd;
-
   // open the named file
-  // TODO: open the named file
+  int fd = open(argv[1], O_RDWR);
+  if (fd < 0) {
+    // file couldn't be opened: handle error and exit
+    fprintf(stderr, "Invalid filename!\n");
+    return 1;
+  }
+
+  struct stat statbuf;
+  int rc = fstat(fd, &statbuf);
+  if (rc != 0) {
+    // handle fstat error and exit
+    fprintf(stderr, "Error with fstat!\n");
+    return 1;
+  }
 
   // determine file size and number of elements
-  unsigned long file_size, num_elements;
-  // TODO: determine the file size and number of elements
+  unsigned long file_size = statbuf.st_size;
+  unsigned long num_elements = file_size / sizeof(int64_t);
 
   // mmap the file data
   int64_t *arr;
-  // TODO: mmap the file data
+  arr = mmap(NULL, file_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  close( fd ); // file can be closed now
+  if ( arr == MAP_FAILED ) {
+      // handle mmap error and exit
+  }
+  // *arr now behaves like a standard array of int64_t.
+  // Be careful though! Going off the end of the array will
+  // silently extend the file, which can rapidly lead to
+  // disk space depletion!
 
   // Sort the data!
   int success;
@@ -44,7 +63,7 @@ int main( int argc, char **argv ) {
   }
 
   // Unmap the file data
-  // TODO: unmap the file data
+  munmap(arr, file_size);
 
   return 0;
 }

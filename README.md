@@ -1,2 +1,2 @@
-# csf_assign04
-parallel quick sort
+Liam Perez lperez19
+Immanuel Gebreyesus igebrey1
