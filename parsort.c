@@ -12,6 +12,7 @@ int compare( const void *left, const void *right );
 void swap( int64_t *arr, unsigned long i, unsigned long j );
 unsigned long partition( int64_t *arr, unsigned long start, unsigned long end );
 int quicksort( int64_t *arr, unsigned long start, unsigned long end, unsigned long par_threshold );
+int quicksort_subprocess( int64_t *arr, unsigned long start, unsigned long end, unsigned long par_threshold );
 
 // TODO: declare additional helper functions if needed
 
@@ -27,7 +28,7 @@ int main( int argc, char **argv ) {
   if (fd < 0) {
     // file couldn't be opened: handle error and exit
     fprintf(stderr, "Invalid filename!\n");
-    return 1;
+    exit( 1 );
   }
 
   struct stat statbuf;
@@ -35,7 +36,7 @@ int main( int argc, char **argv ) {
   if (rc != 0) {
     // handle fstat error and exit
     fprintf(stderr, "Error with fstat!\n");
-    return 1;
+    exit( 1 );
   }
 
   // determine file size and number of elements
@@ -181,8 +182,7 @@ int quicksort( int64_t *arr, unsigned long start, unsigned long end, unsigned lo
 
   // Base case: if there are fewer than 2 elements to sort,
   // do nothing
-  if ( len < 2 )
-    return 1;
+  if ( len < 2 ) { return 1; }
 
   // Base case: if number of elements is less than or equal to
   // the threshold, sort sequentially using qsort
@@ -197,10 +197,60 @@ int quicksort( int64_t *arr, unsigned long start, unsigned long end, unsigned lo
   // Recursively sort the left and right partitions
   int left_success, right_success;
   // TODO: modify this code so that the recursive calls execute in child processes
-  left_success = quicksort( arr, start, mid, par_threshold );
+  left_success = quicksort_subprocess( arr, start, mid, par_threshold );
   right_success = quicksort( arr, mid + 1, end, par_threshold );
 
   return left_success && right_success;
 }
 
 // TODO: define additional helper functions if needed
+
+// Creates a child process to sort half of the array recursively, then
+// Forces the parent to wait for the child to conclude before it continues.
+//
+// Parameters:
+//   arr - pointer to first element of array
+//   start - inclusive lower bound index
+//   end - exclusive upper bound index
+//   par_threshold - if the number of elements in the region is less
+//                   than or equal to this threshold, sort sequentially,
+//                   otherwise sort in parallel using child processes
+//
+// Return:
+//   1 if the child process terminated successfully, 0 otherwise
+int quicksort_subprocess( int64_t *arr, unsigned long start, unsigned long end, unsigned long par_threshold ) {
+  pid_t child_pid = fork();
+  if ( child_pid == 0 ) {
+    // executing in the child
+    int success = quicksort(arr, start, end, par_threshold);
+    if (success) { exit( 0 ); }
+    else {exit( 1 ); }
+  } else if ( child_pid < 0 ) {
+    // fork failed
+    fprintf( stderr, "Fork failed!\n" );
+    return 0;
+  } else {
+    // in parent
+    int rc, wstatus;
+    rc = waitpid( child_pid, &wstatus, 0 );
+    if ( rc < 0 ) {
+      // waitpid failed
+      fprintf( stderr, "Waitpid failed!\n" );
+      return 0;
+    } else {
+      // check status of child
+      if ( !WIFEXITED( wstatus ) ) {
+        // child did not exit normally (e.g., it was terminated by a signal)
+        fprintf( stderr, "Child exited abnormally!\n" );
+        return 0;
+      } else if ( WEXITSTATUS( wstatus ) != 0 ) {
+        // child exited with a non-zero exit code
+        fprintf( stderr, "Child failed (exited with nonzero exit code)!\n" );
+        return 0;
+      } else {
+        // child exited with exit code zero (it was successful)
+        return 1;
+      }
+    }
+  }
+}

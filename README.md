@@ -1,2 +1,64 @@
 Liam Perez lperez19
 Immanuel Gebreyesus igebrey1
+
+Analysis of Experiments
+
+Raw output of experiments disclosed below.
+
+While there was some unexpected output (threshold 32768 performed unexpectedly well),
+the real time seems to decrease as the size of the partition threshold increases. 
+Accounting for the possibility of variances on the client's end outside of the program's control,
+it appears that our code is exhibiting parallel behaviors due to the positive effects
+a higher parallel threshold has on speed.
+
+An explanation for why this would occur is that the OS kernel is able to be more "productive"
+in terms of the sorting algorithm when the partition increases. In the case of the normal quicksort,
+the entire computation is one process; this means when the OS kernel timer shifts focus away from this one 
+process, there is no progress being made on the operation. However, with the parallel implementation 
+and a larger threshold, each individual child process is sorting its own small segment of the array. 
+This means, as long as any given CPU core is focusing on any child process, progress is being made.
+More practically, it means that multiple CPU cores will be focusing on different child processes, 
+allowing many arbitrary slices of the array to be sorted at once for faster overall performance.
+
+Output of Experiments
+
+Test run with threshold 2097152
+
+real    0m0.699s
+user    0m0.672s
+sys     0m0.022s
+Test run with threshold 1048576
+
+real    0m0.873s
+user    0m0.810s
+sys     0m0.054s
+Test run with threshold 524288
+
+real    0m0.883s
+user    0m0.789s
+sys     0m0.081s
+Test run with threshold 262144
+
+real    0m0.903s
+user    0m0.807s
+sys     0m0.084s
+Test run with threshold 131072
+
+real    0m0.943s
+user    0m0.849s
+sys     0m0.082s
+Test run with threshold 65536
+
+real    0m0.972s
+user    0m0.851s
+sys     0m0.110s
+Test run with threshold 32768
+
+real    0m0.909s
+user    0m0.747s
+sys     0m0.153s
+Test run with threshold 16384
+
+real    0m1.074s
+user    0m0.846s
+sys     0m0.219s
