@@ -18,7 +18,7 @@ int quicksort_subprocess( int64_t *arr, unsigned long start, unsigned long end, 
 
 int main( int argc, char **argv ) {
   unsigned long par_threshold;
-  if ( argc != 3 || sscanf( argv[2], "%lu", &par_threshold ) != 1 ) {
+  if ( argc != 3 || sscanf( argv[2], "%lu", &par_threshold ) != 1 || par_threshold == 0) {
     fprintf( stderr, "Usage: parsort <file> <par threshold>\n" );
     exit( 1 );
   }
@@ -36,6 +36,7 @@ int main( int argc, char **argv ) {
   if (rc != 0) {
     // handle fstat error and exit
     fprintf(stderr, "Error with fstat!\n");
+    close(fd);
     exit( 1 );
   }
 
@@ -48,7 +49,9 @@ int main( int argc, char **argv ) {
   arr = mmap(NULL, file_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
   close( fd ); // file can be closed now
   if ( arr == MAP_FAILED ) {
-      // handle mmap error and exit
+    fprintf(stderr, "Memory mapping failed!\n");
+    close(fd);
+    exit(1);
   }
   // *arr now behaves like a standard array of int64_t.
   // Be careful though! Going off the end of the array will
