@@ -164,6 +164,30 @@ unsigned long partition( int64_t *arr, unsigned long start, unsigned long end ) 
   return left_index;
 }
 
+int wait_handler(pid_t pid) {
+  int rc, wstatus;
+  rc = waitpid( pid, &wstatus, 0 );
+  if ( rc < 0 ) {
+    // waitpid failed
+    fprintf( stderr, "Waitpid failed!\n" );
+    return 0;
+  } else {
+    // check status of child
+    if ( !WIFEXITED( wstatus ) ) {
+      // child did not exit normally (e.g., it was terminated by a signal)
+      fprintf( stderr, "Child exited abnormally!\n" );
+      return 0;
+    } else if ( WEXITSTATUS( wstatus ) != 0 ) {
+      // child exited with a non-zero exit code
+      fprintf( stderr, "Child failed (exited with nonzero exit code)!\n" );
+      return 0;
+    } else {
+      // child exited with exit code zero (it was successful)
+      return 1;
+    }
+  }
+}
+
 // Sort specified region of array.
 // Note that the only reason that sorting should fail is
 // if a child process can't be created or if there is any
@@ -198,12 +222,15 @@ int quicksort( int64_t *arr, unsigned long start, unsigned long end, unsigned lo
   unsigned long mid = partition( arr, start, end );
 
   // Recursively sort the left and right partitions
-  int left_success, right_success;
+  pid_t left_success, right_success;
   // TODO: modify this code so that the recursive calls execute in child processes
   left_success = quicksort_subprocess( arr, start, mid, par_threshold );
-  right_success = quicksort( arr, mid + 1, end, par_threshold );
+  right_success = quicksort_subprocess( arr, mid + 1, end, par_threshold );
 
-  return left_success && right_success;
+  int l = wait_handler(left_success);
+  int r = wait_handler(right_success);
+
+  return l && r;
 }
 
 // TODO: define additional helper functions if needed
@@ -221,7 +248,7 @@ int quicksort( int64_t *arr, unsigned long start, unsigned long end, unsigned lo
 //
 // Return:
 //   1 if the child process terminated successfully, 0 otherwise
-int quicksort_subprocess( int64_t *arr, unsigned long start, unsigned long end, unsigned long par_threshold ) {
+pid_t quicksort_subprocess( int64_t *arr, unsigned long start, unsigned long end, unsigned long par_threshold ) {
   pid_t child_pid = fork();
   if ( child_pid == 0 ) {
     // executing in the child
@@ -233,27 +260,6 @@ int quicksort_subprocess( int64_t *arr, unsigned long start, unsigned long end, 
     fprintf( stderr, "Fork failed!\n" );
     return 0;
   } else {
-    // in parent
-    int rc, wstatus;
-    rc = waitpid( child_pid, &wstatus, 0 );
-    if ( rc < 0 ) {
-      // waitpid failed
-      fprintf( stderr, "Waitpid failed!\n" );
-      return 0;
-    } else {
-      // check status of child
-      if ( !WIFEXITED( wstatus ) ) {
-        // child did not exit normally (e.g., it was terminated by a signal)
-        fprintf( stderr, "Child exited abnormally!\n" );
-        return 0;
-      } else if ( WEXITSTATUS( wstatus ) != 0 ) {
-        // child exited with a non-zero exit code
-        fprintf( stderr, "Child failed (exited with nonzero exit code)!\n" );
-        return 0;
-      } else {
-        // child exited with exit code zero (it was successful)
-        return 1;
-      }
-    }
+    return child_pid;
   }
 }
